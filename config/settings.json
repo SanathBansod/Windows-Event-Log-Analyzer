@@ -1,0 +1,4 @@
+{
+  "brute_force_threshold": 5,
+  "brute_force_window_minutes": 10
+}
