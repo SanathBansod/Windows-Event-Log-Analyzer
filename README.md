@@ -1,15 +1,46 @@
 # Windows Event Log Analyzer
 
-A defensive Windows 10/11 SOC portfolio project. It collects Windows Security events, normalizes login activity, detects suspicious patterns, and displays findings in a Streamlit dashboard.
+A defensive Windows 10/11 SOC portfolio project that collects selected Windows Security events, normalizes event data, applies baseline detection rules, and presents investigation leads in a Streamlit dashboard.
+
+> **Project status:** Portfolio prototype / active learning project. Alerts are triage leads, not proof of compromise. Validate every finding with event details and endpoint context.
 
 ## Features
-- Collect Windows Security events: 4624, 4625, 4740, 4672, 4634, 4648, 4720, 4728, 4732, 4756, 1102.
-- Parse login activity and identify repeated failed logons by account and source IP.
-- Detect account lockouts, privileged logons, explicit credential use, account/group changes, and Security log clearing.
-- Export normalized events and alerts as CSV/JSON.
-- Streamlit dashboard with synthetic sample data.
+
+- Collect selected Windows Security events from an authorized Windows host.
+- Normalize event fields for analysis and investigation.
+- Detect repeated failed logons (Event ID 4625) when 5 or more failures for the same account and source IP occur within 10 minutes.
+- Alert on account lockouts (4740), Security audit log clearing (1102), user creation (4720), and selected security-group membership changes (4728, 4732, 4756).
+- Keep successful logons (4624), logoffs (4634), special-privilege events (4672), and explicit-credential events (4648) available for contextual review rather than treating them as standalone malicious activity.
+- Streamlit dashboard with severity-based alert cards, event filters, search, and CSV/JSON exports.
+- Basic MITRE ATT&CK references for applicable detections.
+- Unit tests for core detection behavior.
+
+## Tech stack
+
+- Python
+- Pandas
+- Streamlit
+- pywin32 (Windows event collection)
+- Windows Security Event Logs
+- MITRE ATT&CK references
+
+## Project structure
+
+```text
+analyzer/       Event normalization, detection rules, CLI analysis
+collector/      Windows Security event collection
+config/         Detection threshold settings
+dashboard/      Streamlit SOC investigation dashboard
+sample_logs/    Synthetic sample events for safe demonstration
+tests/          Unit tests
+data/           Local event exports (not committed)
+reports/        Generated reports (not committed)
+```
 
 ## Setup (Windows PowerShell)
+
+Run these commands from the repository root:
+
 ```powershell
 py -3 -m venv venv
 .\venv\Scripts\Activate.ps1
@@ -17,40 +48,63 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Preview using sample data
+## Run with synthetic sample data
+
+Analyze the included sample events:
+
 ```powershell
 python -m analyzer.analyze --input sample_logs\sample_events.json
-streamlit run dashboard\app.py
 ```
 
+Launch the dashboard:
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+python -m streamlit run dashboard\app.py
+```
+
+Open the local URL printed by Streamlit (normally `http://localhost:8501`).
+
 ## Collect real Windows Security events
-Open PowerShell **as Administrator** in the project folder:
+
+Use only a Windows system you own or are explicitly authorized to administer. Open PowerShell as Administrator in the repository root:
+
 ```powershell
 python -m collector.collect_events --hours 24 --limit 5000
 python -m analyzer.analyze --input data\events.json
 ```
 
-## Detection rules
-- 5 or more failed logons for the same account and source IP within 10 minutes: possible brute-force activity.
-- Event ID 4740: account lockout.
-- Event ID 4672: special privileges assigned (contextual signal, not automatically malicious).
-- Event ID 4648: explicit credentials used.
-- Event ID 1102: Security audit log cleared.
-- Event IDs 4720, 4728, 4732, 4756: account/group changes.
+The collector writes to `data/events.json`. This file is intentionally excluded from Git because real Windows logs can contain usernames, hostnames, IP addresses, and other sensitive details.
 
-Alerts are investigation leads, not proof of compromise. Correlate with surrounding events and validate account, source, timing, and endpoint context.
+## Detection logic
 
-## Project structure
-```text
-collector/       Windows Event Log collection
-analyzer/        parsing, detection, CLI analysis
-dashboard/       Streamlit dashboard
-config/          detection settings
-sample_logs/     synthetic demonstration events
-tests/           unit tests
-data/            local event exports (gitignored)
-reports/         generated reports (gitignored)
+| Event / condition | Baseline behavior |
+|---|---|
+| 4625 | Possible brute-force alert at 5 failures for the same account + source IP within 10 minutes |
+| 4740 | High-severity account-lockout alert |
+| 1102 | High-severity Security audit log-cleared alert |
+| 4720 | High-severity user-account-created alert |
+| 4728, 4732, 4756 | High-severity security-group membership change alerts |
+| 4624, 4634 | Retained as normal login/logoff telemetry |
+| 4672, 4648 | Retained for contextual investigation; no standalone alert by default |
+
+The brute-force threshold is a configurable baseline in `config/settings.json`. Confirm the meaning of event fields on the target Windows version and correlate detections with surrounding activity.
+
+## Run tests
+
+```powershell
+python -m unittest discover -s tests -v
 ```
 
 ## Privacy and safe use
-Use this tool only on systems you own or are authorized to administer. Windows Security logs may contain usernames, hostnames, and IP addresses. Do not publish raw logs or reports containing sensitive information.
+
+- Do not commit raw exports from `data/` or generated reports containing real endpoint details.
+- Do not publish usernames, hostnames, internal IP addresses, SIDs, or other identifying log content.
+- Use synthetic or sanitized data for screenshots and public demonstrations.
+- Use this project only for defensive monitoring on systems you own or are authorized to assess.
+
+## Future improvements
+
+- Add a dedicated detection-testing lab with positive and negative test scenarios.
+- Improve event parsing using structured Windows Event XML and validate field mappings across Windows versions.
+- Expand detection coverage, correlation, and test cases.
