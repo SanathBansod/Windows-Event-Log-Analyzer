@@ -24,6 +24,26 @@ A defensive Windows 10/11 SOC portfolio project that collects selected Windows S
 - Windows Security Event Logs
 - MITRE ATT&CK references
 
+## Dashboard screenshots
+
+The dashboard uses synthetic sample data for this public demonstration. These screenshots show the main investigation views.
+
+### Dashboard overview
+
+![Dashboard overview](screenshots/dashboard-overview.png)
+
+### Event explorer
+
+![Event explorer](screenshots/event-explorer.png)
+
+### Detection alerts
+
+![Detection alerts](screenshots/detection-alerts.png)
+
+### MITRE ATT&CK reference
+
+![MITRE ATT&CK reference](screenshots/mitre-attack.png)
+
 ## Project structure
 
 ```text
